@@ -290,3 +290,173 @@ Links:
 1. https://techcommunity.microsoft.com/blog/appsonazureblog/how-to-set-offset-for-event-hubs-trigger/3871873
 1. https://stackoverflow.com/questions/66280713/spark-structured-streaming-kafka-offset-handling
 1. https://camel.apache.org/blog/2020/12/CKC-idempotency-070/1. 
+                                                                      
+
+## Key Considerations for the exercise part
+
+### 1. **Checkpoint Management**
+   - Use separate checkpoint locations for different streams
+   - Regularly clean up old checkpoints[2][4]
+   
+  Here is the full context.
+
+#### 1. Checkpoint Fundamentals
+  Checkpoints in Structured Streaming serve as **persistent logs** that track:
+     - **Processing progress** (last consumed offsets)
+     - **State information** for aggregations and window operations
+     - **Metadata** about the streaming query (source/sink configs)
+  
+  ```python
+  # Example from code:
+  bronze_write = parsed_stream.writeStream \
+      .option("checkpointLocation", "Files/checkpoints/bronze") \  # [1][4]
+      .table("bronze_events")
+  ```
+
+#### 2.  Implementation Details
+  2.1 Query-Specific Checkpoints
+  Each streaming query **must** have a unique checkpoint location:
+  
+  ```python
+  # Bronze layer
+  .option("checkpointLocation", "Files/checkpoints/bronze") 
+  
+  # Silver layer 
+  .option("checkpointLocation", "Files/checkpoints/silver") 
+  ```
+  
+  **Why this matters:**
+  - Prevents metadata conflicts between queries
+    - Enables independent recovery of different pipeline stages
+    - Maintains separate state stores for different processing logic
+  
+  ##### 2.2 Checkpoint Composition
+  A checkpoint directory contains:
+  ```
+  ├── commits       # Transaction log
+  ├── offsets       # Source offsets per batch
+  ├── state         # Aggregation/window states
+  └── metadata      # Query configuration
+  ```
+  
+  #### 3. Recovery Mechanisms
+  
+  ### 3.1 Failure Recovery Flow
+  1. **Driver Restart**: Reads metadata to reconstruct query
+     2. **Offset Validation**: Confirms stored offsets with source
+     3. **State Restoration**: Rebuilds in-memory state from disk
+     4. **Processing Resume**: Continues from last committed offset
+  
+  ### 3.2 Watermark Coordination
+  ```python
+  .withWatermark("processing_time", "10 minutes") 
+  ```
+  - Checkpoints store watermark progress to handle:
+    - Late-arriving data management
+    - State cleanup thresholds
+    - Window expiration tracking
+  
+  ## 4. Production Considerations
+  
+  ### 4.1 Storage Requirements
+  | Feature | Impact on Checkpoints | Source |
+  |---------|-----------------------|--|
+  | 10 MB/s throughput | ~1 GB/day checkpoints | https://risingwave.com/blog/the-ultimate-guide-to-setting-checkpoint-location-in-spark-streaming/ |
+  | 24h retention | 7-14 day storage budget |https://www.reddit.com/r/databricks/comments/1fkwm00/handling_spark_structured_streaming_checkpoint/ |
+
+  **Best Practice:** Use cloud storage with lifecycle policies for automatic cleanup.
+  
+  ### 4.2 Version Compatibility
+  ```python
+  # Code impact when modifying:
+  .option("checkpointLocation", "Files/checkpoints/v2") 
+  ```
+  **Key constraints:**
+  - Schema changes require new checkpoint
+    - Source/sink modifications need fresh checkpoints
+    - Spark version upgrades often need migration
+  
+  ## 5. Operational Best Practices
+  
+  ### 5.1 Monitoring Essentials
+  ```python
+  # From code example:
+  for stream in spark.streams.active:
+      print(f"Status: {stream.status}")  
+      print(f"Progress: {stream.lastProgress}")
+  ```
+  **Critical metrics:**
+  - `numInputRows` vs `processedRowsPerSecond`
+    - `stateOperators` memory usage
+    - `sources` lag metrics
+  
+  ### 5.2 Maintenance Checklist
+  1. **Daily validation** of checkpoint accessibility
+     2. **Weekly cleanup** of orphaned checkpoints
+     3. **Monthly testing** of failure recovery process
+  
+  ## 6. Code-Specific Analysis
+  
+  ### 6.1 Anomaly Detection Checkpoints
+  ```python
+  anomalies.writeStream \
+      .option("checkpointLocation", "Files/checkpoints/anomalies") 
+  ```
+  **Special considerations:**
+  - ML model versions must be checkpoint-compatible
+    - Feature vectors require schema versioning
+    - Model updates need checkpoint migration
+  
+  ### 6.2 Delta Lake Integration
+  ```python
+  .format("delta") \  # Implicit checkpoint optimizations
+  ```
+  **Automatic enhancements:**
+  - Transactional writes with ACID guarantees
+    - Compaction during checkpoint commits
+    - Schema evolution tracking
+  
+  ## 7. Failure Modes and Mitigations
+  
+  | Failure Scenario | Checkpoint Behavior | Recovery Action |
+  |-------------------|----------------------|-----------------|
+  | Driver crash | Auto-restart from last commit | Monitor spark-submit process |
+  | Executor failure | Rebuild state from checkpoint | Ensure adequate cluster size |
+  | Storage outage | Query termination | Validate storage redundancy |
+  | Schema drift | Query failure with SerializationException | Implement schema registry |
+  
+
+2. **Schema Evolution**
+   - Use `mergeSchema` option for Delta writes
+   ```python
+   .option("mergeSchema", "true")
+   ```
+
+3. **Late Data Handling**
+   ```python
+   .withWatermark("processing_time", "1 hour")
+   ```
+
+4. **Fault Tolerance**
+   - Enable write-ahead logs (WAL)
+   ```python
+   .config("spark.sql.streaming.checkpointLocation", "Files/checkpoints")
+   ```
+
+This implementation follows the medallion architecture pattern and integrates with Fabric's Spark engine capabilities. The solution provides:
+- Real-time ingestion from Event Hubs
+- Nested JSON parsing
+- Windowed aggregations
+- Anomaly detection
+- Delta Lake integration
+- Production-grade monitoring[1][2][4][8]
+
+# References
+[1] https://www.youtube.com/watch?v=wo9vhVBUKXI
+[2] https://github.com/Azure/azure-event-hubs-spark/blob/master/docs/structured-streaming-eventhubs-integration.md
+[3] https://k21academy.com/microsoft-azure/data-engineer/structured-streaming-with-azure-event-hubs/
+[4] https://github.com/Azure/azure-event-hubs-spark/blob/master/docs/spark-streaming-eventhubs-integration.md
+[5] https://www.youtube.com/watch?v=pwWIegHgNRw
+[6] https://learn.microsoft.com/en-us/azure/event-hubs/event-hubs-kafka-spark-tutorial
+[7] https://learn.microsoft.com/pl-pl/azure/event-hubs/event-hubs-kafka-spark-tutorial
+[8] https://addendanalytics.com/blog/structured-streaming-in-databricks-from-event-hub
