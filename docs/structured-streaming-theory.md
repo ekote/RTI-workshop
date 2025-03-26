@@ -453,10 +453,17 @@ This implementation follows the medallion architecture pattern and integrates wi
 
 # References
 [1] https://www.youtube.com/watch?v=wo9vhVBUKXI
+
 [2] https://github.com/Azure/azure-event-hubs-spark/blob/master/docs/structured-streaming-eventhubs-integration.md
+
 [3] https://k21academy.com/microsoft-azure/data-engineer/structured-streaming-with-azure-event-hubs/
+
 [4] https://github.com/Azure/azure-event-hubs-spark/blob/master/docs/spark-streaming-eventhubs-integration.md
+
 [5] https://www.youtube.com/watch?v=pwWIegHgNRw
+
 [6] https://learn.microsoft.com/en-us/azure/event-hubs/event-hubs-kafka-spark-tutorial
+
 [7] https://learn.microsoft.com/pl-pl/azure/event-hubs/event-hubs-kafka-spark-tutorial
+
 [8] https://addendanalytics.com/blog/structured-streaming-in-databricks-from-event-hub
