@@ -477,7 +477,7 @@ Now we have to run the notebook to create the stream of artificial click events 
 
    ![alt text](assets/image_task07_step02.png)
 
-3. Click **Run all** at the top left to start generating streaming events.
+3. Click **Run all** at the top left to start generating § events.
 
    ![alt text](assets/image_task07_step03.png)
 
