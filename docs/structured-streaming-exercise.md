@@ -48,7 +48,7 @@ producer_events = EventHubProducerClient.from_connection_string(
 ehConf = {
     "eventhubs.connectionString": eventHubConnString,
     "eventhubs.consumerGroup": "$Default",
-    "maxEventsPerTrigger": 1000,  # Throughput control [2][4] - limits how many events Spark will read per trigger cycle, helping control throughput and avoid overwhelming your application.
+    "maxEventsPerTrigger": 1000,  # Throughput control - limits how many events Spark will read per trigger cycle, helping control throughput and avoid overwhelming your application.
     "startingPosition": json.dumps({"offset": "-1"}) # Defines where in the stream Spark starts reading. Here, "-1" means start from the earliest available event.
 }
 
@@ -93,7 +93,7 @@ parsed_stream = raw_stream.select(
 ```python
 from pyspark.sql.functions import window, count, countDistinct
 
-# Windowed aggregations [1][8]
+# Windowed aggregations
 windowed_agg = parsed_stream \
     .withWatermark("processing_time", "10 minutes") \
     .groupBy(
